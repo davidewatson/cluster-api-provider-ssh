@@ -21,3 +21,8 @@ builds:
   - image: samsung_cnct/ssh-machine-controller
     context: machine-controller
     locationOverride: cmd
+  # This build tests the images.
+  - image: samsung_cnct/clusterctl
+    context: clusterctl
+    locationOverride: .
+
