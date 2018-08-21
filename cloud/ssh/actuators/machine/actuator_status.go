@@ -27,19 +27,14 @@ func (a *Actuator) updateStatus(c *clusterv1.Cluster, m *clusterv1.Machine) erro
 		return nil
 	}
 
-	exists, err := a.Exists(c, m)
+	_, err := util.GetMachineIfExists(a.v1Alpha1Client.Machines(m.Namespace), m.Name)
 	if err != nil {
-		return err
-	}
-
-	if !exists {
-		// The current status no longer exists because the matching CRD has been deleted.
 		return fmt.Errorf("Machine has already been deleted. Cannot update current instance status for machine %s", m.Name)
 	}
 
 	m.Status = clusterv1.MachineStatus{
 		LastUpdated: metav1.Now(),
-		Versions: &m.Spec.Versions,
+		Versions:    &m.Spec.Versions,
 	}
 
 	_, err = a.v1Alpha1Client.Machines(m.Namespace).UpdateStatus(m)
