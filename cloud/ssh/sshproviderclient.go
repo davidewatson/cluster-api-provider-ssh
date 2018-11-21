@@ -80,8 +80,8 @@ func (s *sshProviderClient) ProcessCMD(cmd string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create a session: %v", err)
 	}
-	defer session.Close()
 	defer connection.Close()
+	defer session.Close()
 
 	outputBytes, err := session.CombinedOutput(cmd)
 	glog.Infof("Command output = %s ", string(outputBytes[:]))
@@ -97,10 +97,11 @@ func (s *sshProviderClient) ProcessCMDWithOutput(cmd string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %v", err)
 	}
-	defer session.Close()
 	defer connection.Close()
+	defer session.Close()
 
 	outputBytes, err := session.Output(cmd)
+	glog.Infof("Command output = %s ", string(outputBytes[:]))
 
 	return outputBytes, err
 }
@@ -172,7 +173,7 @@ func GetBasicSession(s *sshProviderClient) (*ssh.Session, *ssh.Client, error) {
 	session, err := connection.NewSession()
 	if err != nil {
 		glog.Errorf("failed to create sesssion", err)
-		return nil, nil,fmt.Errorf("failed to create session: %v", err)
+		return nil, nil, fmt.Errorf("failed to create session: %v", err)
 	}
 
 	return session, connection, nil
