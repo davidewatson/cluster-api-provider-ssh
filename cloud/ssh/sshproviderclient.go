@@ -19,6 +19,7 @@ const (
 	// implement a connection pool instead.
 	SshTimeoutSeconds    = 600
 	SshTimeout           = time.Duration(SshTimeoutSeconds) * time.Second
+	TCPKeepAlivePeriod   = time.Duration(60) * time.Second
 	GetKubeconfigCommand = "cat /etc/kubernetes/admin.conf"
 )
 
@@ -136,7 +137,29 @@ func (s *sshProviderClient) WriteFile(scriptLines string, remotePath string) err
 }
 
 func GetBasicSession(s *sshProviderClient) (*ssh.Session, *ssh.Client, error) {
-	var sshConfig *ssh.ClientConfig
+	// Create TCP connection so that we can send keep alives.
+	// See https://github.com/golang/go/issues/21478 for why this is not easier...
+	tcpConn, err := func() (c net.Conn, err error) {
+		c, err = net.Dial("tcp", s.address)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := c.(*net.TCPConn).SetKeepAlive(true); err != nil {
+			return nil, err
+		}
+		if err := c.(*net.TCPConn).SetKeepAlivePeriod(TCPKeepAlivePeriod); err != nil {
+			return nil, err
+		}
+
+		return c, nil
+	}()
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Construct list of authentication methods
 	sshAuthMethods := make([]ssh.AuthMethod, 0)
 
 	if s.privateKey != "" {
@@ -152,7 +175,8 @@ func GetBasicSession(s *sshProviderClient) (*ssh.Session, *ssh.Client, error) {
 		sshAuthMethods = append(sshAuthMethods, sshAgent)
 	}
 
-	sshConfig = &ssh.ClientConfig{
+	// Create SSH client
+	clientConfig := &ssh.ClientConfig{
 		User: s.username,
 		Auth: sshAuthMethods,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
@@ -163,19 +187,36 @@ func GetBasicSession(s *sshProviderClient) (*ssh.Session, *ssh.Client, error) {
 		Timeout: SshTimeout,
 	}
 
-	connection, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", s.address, s.port), sshConfig)
+	clientConn, chans, reqs, err := ssh.NewClientConn(tcpConn, s.address, clientConfig)
 	if err != nil {
-		emsg := fmt.Sprintf("failed to dial to %s:%d:", s.address, s.port)
-		return nil, nil, fmt.Errorf(emsg, err)
+		return nil, nil, err
 	}
 
-	session, err := connection.NewSession()
+	client := ssh.NewClient(clientConn, chans, reqs)
+
+	// This regularly sends keepalive packets
+	go func() {
+		t := time.NewTicker(time.Minute)
+		defer t.Stop()
+
+		for {
+			select {
+			case <-t.C:
+			}
+
+			if _, _, err := client.Conn.SendRequest("keepalive", true, nil); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Create SSH session
+	session, err := client.NewSession()
 	if err != nil {
-		glog.Errorf("failed to create sesssion", err)
-		return nil, nil,fmt.Errorf("failed to create session: %v", err)
+		return nil, client, err
 	}
 
-	return session, connection, nil
+	return session, client, nil
 }
 
 func PublicKeyFile(privateKey string, passPhrase string) (ssh.AuthMethod, error) {
