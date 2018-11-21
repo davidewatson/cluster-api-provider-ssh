@@ -15,7 +15,7 @@ import (
 
 // debugMux, if set, causes messages in the connection protocol to be
 // logged.
-const debugMux = false
+const debugMux = true
 
 // chanList is a thread safe channel list.
 type chanList struct {
