@@ -280,8 +280,16 @@ func (a *Actuator) updateMasterInPlace(c *clusterv1.Cluster, oldMachine *cluster
 	}
 	sshClient := ssh.NewSSHProviderClient(privateKey, passPhrase, machineConfig.SSHConfig)
 
+	skipCurl := false
+	for k, _ := range oldMachine.Annotations {
+		if k == machine.SkipCurl {
+			skipCurl = true
+			break
+		}
+	}
+
 	// Perform kubeadm upgrade on the ControlPlane
-	if oldMachine.Spec.Versions.ControlPlane != newMachine.Spec.Versions.ControlPlane {
+	if oldMachine.Spec.Versions.ControlPlane != newMachine.Spec.Versions.ControlPlane && !skipCurl {
 		glog.Infof("Updating master node %s; controlplane version from %s to %s.", oldMachine.Name, oldMachine.Spec.Versions.ControlPlane, newMachine.Spec.Versions.ControlPlane)
 		cmd := fmt.Sprintf(upgradeControlPlaneCmd, newMachine.Spec.Versions.ControlPlane)
 		glog.Infof("updateControlPlaneCmd = %s", cmd)

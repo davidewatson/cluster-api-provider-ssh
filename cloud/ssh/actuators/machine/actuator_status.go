@@ -18,6 +18,7 @@ type AnnotationKey string
 const (
 	InstanceStatus AnnotationKey = "instance-status"
 	Name           AnnotationKey = "machine-name"
+	SkipCurl       AnnotationKey = "ssh.cluster.k8s.io/skip-curl"
 )
 
 // Get the status of the instance identified by the given machine
