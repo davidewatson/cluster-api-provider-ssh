@@ -290,7 +290,11 @@
               return 1
             fi
 
-            if ! systemctl enable kubelet && systemctl start kubelet;then
+            cat <<EOF > /etc/default/kubelet
+            KUBELET_EXTRA_ARGS=--cgroup-driver=systemd
+            EOF
+
+            if ! systemctl enable kubelet && systemctl restart kubelet;then
               echo >&2 "Unable to start kubelet"
               return 1
             fi
