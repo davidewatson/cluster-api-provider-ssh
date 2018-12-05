@@ -24,7 +24,8 @@ RUN mkdir /var/tmp/${K8S_VERSION_OLD} \
     kubectl-${K8S_VERSION_OLD} \
     kubeadm-${K8S_VERSION_OLD} \
     kubelet-${K8S_VERSION_OLD} \
-    kubernetes-cni
+    kubernetes-cni \
+    createrepo
 RUN mkdir /var/tmp/${K8S_VERSION_NEW} \
   && yumdownloader --assumeyes --resolve --destdir /var/tmp/${K8S_VERSION_NEW} \
     kubectl-${K8S_VERSION_NEW} \
